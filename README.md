@@ -1,3 +1,7 @@
+# video2gif
+
+A lightweight Bash utility to convert videos into optimized, looping GIFs using FFmpeg and Gifsicle.
+
 ## Install
 
 ```bash
@@ -7,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/agb-777/video2gif/main/install.sh |
 ## Usage
 
 ```bash
-video2gif -i input.mp4 -o output.gif
+video2gif -i <input> -o <output>
 ```
 
 ## Results
