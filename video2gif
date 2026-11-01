@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 set -Eeuo pipefail
@@ -9,8 +8,7 @@ usage() {
     cat <<EOF
 video2gif - v${VERSION}
 
-A lightweight Bash utility to convert videos into optimized,
-looping GIFs using FFmpeg and Gifsicle.
+A lightweight Bash utility to convert videos into optimized, looping GIFs using FFmpeg and Gifsicle.
 
 Usage:
   video2gif -i <input> -o <output>
