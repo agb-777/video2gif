@@ -4,6 +4,12 @@ set -Eeuo pipefail
 
 VERSION="1.0.0"
 
+input=""
+output=""
+quality="medium"
+overwrite=0
+tmpdir=""
+
 usage() {
     cat <<EOF
 video2gif - v${VERSION}
@@ -11,23 +17,42 @@ video2gif - v${VERSION}
 A lightweight Bash utility to convert videos into optimized, looping GIFs using FFmpeg and Gifsicle.
 
 Usage:
-  video2gif -i <input> -o <output>
+  video2gif -i <input> -o <output> [-q <quality>] [-y]
 
 Options:
-  -i FILE    Input video file
-  -o FILE    Output GIF file
-  -h         Show this help message
-  -v         Show version
+  -i FILE       Input video file
+  -o FILE       Output GIF file
+  -q QUALITY    GIF quality: high, medium, or low (default: medium)
+  -y            Overwrite existing output file
+  -h            Show this help message
+  -v            Show version
 
-Example:
+Quality levels:
+  high          15 FPS, 640px, 256 colors
+  medium        10 FPS, 420px, 160 colors
+  low           8 FPS, 340px, 112 colors
+
+Examples:
   video2gif -i input.mp4 -o output.gif
+  video2gif -i input.mp4 -o output.gif -q high
+  video2gif -i input.mp4 -o output.gif -q medium
+  video2gif -i input.mp4 -o output.gif -q low
+  video2gif -i input.mp4 -o output.gif -y
 EOF
 }
 
-input=""
-output=""
+die() {
+    printf '[-] %s\n' "$*" >&2
+    exit 1
+}
 
-while getopts ":i:o:hv" opt; do
+cleanup() {
+    if [[ -n "$tmpdir" && -d "$tmpdir" ]]; then
+        rm -rf -- "$tmpdir"
+    fi
+}
+
+while getopts ":i:o:q:hyv" opt; do
     case "$opt" in
         i)
             input="$OPTARG"
@@ -35,80 +60,136 @@ while getopts ":i:o:hv" opt; do
         o)
             output="$OPTARG"
             ;;
+        q)
+            quality="${OPTARG,,}"
+            ;;
+        y)
+            overwrite=1
+            ;;
         h)
             usage
             exit 0
             ;;
         v)
-            echo "video2gif v${VERSION}"
+            printf 'video2gif v%s\n' "$VERSION"
             exit 0
             ;;
         :)
-            echo "[-] Option -$OPTARG requires an argument." >&2
-            exit 1
+            die "Option -$OPTARG requires an argument."
             ;;
         \?)
-            echo "[-] Unknown option: -$OPTARG" >&2
-            usage >&2
-            exit 1
+            die "Unknown option: -$OPTARG"
             ;;
     esac
 done
 
+shift "$((OPTIND - 1))"
+
+if [[ $# -gt 0 ]]; then
+    die "Unexpected argument: $1"
+fi
+
 if [[ -z "$input" || -z "$output" ]]; then
-    echo "[-] Input and output are required." >&2
-    usage >&2
-    exit 1
+    die "Input and output are required. Use -h for help."
 fi
 
 if [[ ! -f "$input" || ! -r "$input" ]]; then
-    echo "[-] Input file does not exist or is not readable: $input" >&2
-    exit 1
+    die "Input file does not exist or is not readable: $input"
 fi
 
-for cmd in ffmpeg gifsicle mktemp; do
+for cmd in ffmpeg gifsicle mktemp dirname rm mv ln du cut; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "[-] Required dependency not found: $cmd" >&2
-        exit 1
+        die "Required dependency not found: $cmd"
     fi
 done
 
 if [[ "${output,,}" != *.gif ]]; then
-    echo "[-] Output filename must have a .gif extension." >&2
-    exit 1
+    die "Output filename must have a .gif extension."
 fi
+
+if [[ -d "$output" ]]; then
+    die "Output path is a directory: $output"
+fi
+
+if [[ -e "$output" || -L "$output" ]]; then
+    if [[ "$input" -ef "$output" ]]; then
+        die "Input and output refer to the same file."
+    fi
+
+    if (( overwrite == 0 )); then
+        die "Output file already exists. Use -y to overwrite it."
+    fi
+fi
+
+case "$quality" in
+    high)
+        fps=15
+        width=640
+        colors=256
+        bayer_scale=3
+        ;;
+    medium)
+        fps=10
+        width=420
+        colors=160
+        bayer_scale=4
+        ;;
+    low)
+        fps=8
+        width=340
+        colors=112
+        bayer_scale=4
+        ;;
+    *)
+        die "Invalid quality: $quality. Available: high, medium, low."
+        ;;
+esac
 
 output_dir="$(dirname -- "$output")"
 
 if [[ ! -d "$output_dir" ]]; then
-    echo "[-] Output directory does not exist: $output_dir" >&2
-    exit 1
+    die "Output directory does not exist: $output_dir"
 fi
 
-tmpdir="$(mktemp -d "${output_dir}/.video2gif.XXXXXX")"
-
-cleanup() {
-    rm -rf -- "$tmpdir"
-}
+if ! tmpdir="$(mktemp -d -- "${output_dir}/.video2gif.XXXXXX")"; then
+    die "Failed to create temporary directory."
+fi
 
 trap cleanup EXIT
 
 temp_gif="${tmpdir}/temp.gif"
 final_gif="${tmpdir}/output.gif"
 
-echo "[*] Converting video to GIF..."
+printf '[*] video2gif v%s\n' "$VERSION"
+printf '[*] Input: %s\n' "$input"
+printf '[*] Output: %s\n' "$output"
+printf '[*] Quality: %s\n' "$quality"
+printf '[*] Settings: %s FPS, %spx, %s colors\n' "$fps" "$width" "$colors"
 
-ffmpeg -hide_banner -i "$input" -filter_complex "[0:v]fps=8,scale=340:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=112:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -an -loop 0 -y "$temp_gif"
+printf '[*] Converting video to GIF...\n'
 
-echo "[*] Optimizing GIF..."
+ffmpeg -hide_banner -nostdin -i "$input" \
+    -filter_complex "[0:v]fps=${fps},scale=w='min(${width},iw)':h=-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=${colors}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=${bayer_scale}:diff_mode=rectangle[gif]" \
+    -map "[gif]" \
+    -an \
+    -loop 0 \
+    -y "$temp_gif"
+
+printf '[*] Optimizing GIF...\n'
 
 gifsicle -O3 --no-comments --no-names "$temp_gif" -o "$final_gif"
 
-mv -f -- "$final_gif" "$output"
+printf '[*] Saving output...\n'
 
-echo "[+] Conversion completed successfully!"
-echo "[+] Output: $output"
-
-if command -v du >/dev/null 2>&1; then
-    echo "[+] File size: $(du -h -- "$output" | cut -f1)"
+if (( overwrite )); then
+    mv -f -- "$final_gif" "$output"
+else
+    if ! ln -- "$final_gif" "$output"; then
+        die "Failed to save output. The destination may already exist."
+    fi
+    rm -- "$final_gif"
 fi
+
+printf '[+] Conversion completed successfully!\n'
+printf '[+] Output: %s\n' "$output"
+printf '[+] File size: %s\n' "$(du -h -- "$output" | cut -f1)"
