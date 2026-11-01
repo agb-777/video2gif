@@ -1,8 +1,7 @@
 ## Install
 
 ```bash
-sudo apt update
-sudo apt install ffmpeg gifsicle
+curl -fsSL https://raw.githubusercontent.com/agb-777/video2gif/main/install.sh | bash
 ```
 
 ## Usage
