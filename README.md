@@ -1,7 +1,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/agb-777/video2gif/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/agb-777/video2gif/main/install.sh | sudo bash
 ```
 
 ## Usage
