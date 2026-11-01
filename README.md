@@ -18,4 +18,5 @@ video2gif -i <input> -o <output>
 
 <div align="left">
   <img src="https://i.ibb.co.com/svhzGRMW/output.gif" width="200" />
+  <img src="https://i.ibb.co.com/G4XnD0ZF/output.gif" width="200" />
 </div>
