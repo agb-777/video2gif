@@ -44,11 +44,11 @@ while getopts ":i:o:hv" opt; do
             exit 0
             ;;
         :)
-            echo "[!] Option -$OPTARG requires an argument." >&2
+            echo "[-] Option -$OPTARG requires an argument." >&2
             exit 1
             ;;
         \?)
-            echo "[!] Unknown option: -$OPTARG" >&2
+            echo "[-] Unknown option: -$OPTARG" >&2
             usage >&2
             exit 1
             ;;
@@ -56,32 +56,32 @@ while getopts ":i:o:hv" opt; do
 done
 
 if [[ -z "$input" || -z "$output" ]]; then
-    echo "[!] Input and output are required." >&2
+    echo "[-] Input and output are required." >&2
     usage >&2
     exit 1
 fi
 
 if [[ ! -f "$input" || ! -r "$input" ]]; then
-    echo "[!] Input file does not exist or is not readable: $input" >&2
+    echo "[-] Input file does not exist or is not readable: $input" >&2
     exit 1
 fi
 
 for cmd in ffmpeg gifsicle mktemp; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
-        echo "[!] Required dependency not found: $cmd" >&2
+        echo "[-] Required dependency not found: $cmd" >&2
         exit 1
     fi
 done
 
 if [[ "${output,,}" != *.gif ]]; then
-    echo "[!] Output filename must have a .gif extension." >&2
+    echo "[-] Output filename must have a .gif extension." >&2
     exit 1
 fi
 
 output_dir="$(dirname -- "$output")"
 
 if [[ ! -d "$output_dir" ]]; then
-    echo "[!] Output directory does not exist: $output_dir" >&2
+    echo "[-] Output directory does not exist: $output_dir" >&2
     exit 1
 fi
 
