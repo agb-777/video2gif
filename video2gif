@@ -29,8 +29,12 @@ output=""
 
 while getopts ":i:o:hv" opt; do
     case "$opt" in
-        i) input="$OPTARG" ;;
-        o) output="$OPTARG" ;;
+        i)
+            input="$OPTARG"
+            ;;
+        o)
+            output="$OPTARG"
+            ;;
         h)
             usage
             exit 0
@@ -94,9 +98,7 @@ final_gif="${tmpdir}/output.gif"
 
 echo "[*] Converting video to GIF..."
 
-ffmpeg -hide_banner -i "$input" \
--filter_complex "[0:v]fps=8,scale=340:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=112:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
--an -loop 0 -y "$temp_gif"
+ffmpeg -hide_banner -i "$input" -filter_complex "[0:v]fps=8,scale=340:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=112:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" -an -loop 0 -y "$temp_gif"
 
 echo "[*] Optimizing GIF..."
 
